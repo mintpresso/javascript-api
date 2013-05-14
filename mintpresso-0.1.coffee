@@ -1,5 +1,12 @@
 ###
-* MINTPRESSO JavaScript API by Jinhyuk Lee at MINTPRESSO and trinity.so
+# mintpresso-0.1.coffee
+#
+# Author: Jinhyuk Lee <eces at mstock.org>
+# Organization: MINTPRESSO <support at mintpresso.com>
+# Repository: https://github.com/mintpresso/javascript-api
+#
+# Description: This is an JavaScript API library for MINTPRESSO Data Cloud.
+#
 ###
 
 __init__ = (d, key) ->
