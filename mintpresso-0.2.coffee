@@ -47,9 +47,9 @@ try
     urls:
       getPoint: "/account/{0}/point/{1}?"
       getPointByTypeOrIdentifier: "/account/{0}/point?type={1}&identifier={2}&"
-      addPoint: "/post/account/{0}/point?updateIfExists={1}&"
+      addPoint: "/post/account/{0}/point?json={1}&updateIfExists={2}&"
       findEdge: "/account/{0}/edge?subjectId={1}&subjectType={2}&subjectIdentifier={3}&verb={4}&objectId={5}&objectType={6}&objectIdentifier={7}&getInnerModels={8}&"
-      linkWithEdge: "/post/account/{0}/edge?subjectId={1}&subjectType={2}&subjectIdentifier={3}&verb={4}&objectId={5}&objectType={6}&objectIdentifier={7}&getInnerModels={8}&"
+      linkWithEdge: "/post/account/{0}/edge?json={1}&"
     dataType: 'jsonp'
     useCallback: true
     callbackName: 'JSAPIMINTPRESSOCALLBACK'
@@ -60,6 +60,8 @@ try
   model = 
     verbs: new Array('do', 'does', 'did', 'verb')
     mark: '?'
+    subjectMark: '$'
+    objectMark: '_'
     point:
       prototype: new Array('type', 'identifier', 'data')
     edge:
@@ -174,7 +176,11 @@ try
     for key of json
       switch i
         when 1
-          sType = encodeURIComponent(key)
+          if key isnt undefined and key.indexOf(model.subjectMark) is 0
+            sType = key.substring(1, key.length)
+          else
+            sType = key
+          sType = encodeURIComponent(sType)
           sId = encodeURIComponent(json[key]) if json[key] isnt model.mark and typeof json[key] is 'number'
           sString = encodeURIComponent(json[key]) if json[key] isnt model.mark and typeof json[key] is 'string'
         when 2
@@ -183,7 +189,11 @@ try
           else
             v = encodeURIComponent(json[key]) if json[key] isnt model.mark
         when 3
-          oType = encodeURIComponent(key)
+          if key isnt undefined and key.indexOf(model.objectMark) is 0
+            oType = key.substring(1, key.length)
+          else
+            oType = key
+          oType = encodeURIComponent(oType)
           oId = encodeURIComponent(json[key]) if json[key] isnt model.mark and typeof json[key] is 'number'
           oString = encodeURIComponent(json[key]) if json[key] isnt model.mark and typeof json[key] is 'string'
         else
@@ -192,7 +202,7 @@ try
       i++
 
     jQuery.ajax {
-      url: server.get() + prefix.version + server.urls.findEdges.format(client.id, sId, sType, sString, v, oId, oType, oString, getInnerModels) + client.getAPI()
+      url: server.get() + prefix.version + server.urls.findEdge.format(client.id, sId, sType, sString, v, oId, oType, oString, getInnerModels) + client.getAPI()
       type: 'GET'
       async: true
       cache: false
@@ -220,7 +230,7 @@ try
         value.point.data[key] = json[key]
 
     jQuery.ajax {
-      url: server.get() + prefix.version + server.urls.addPoint.format(client.id, encodeURIComponent JSON.stringify(value), updateIfExists) + client.getAPI()
+      url: server.get() + prefix.version + server.urls.addPoint.format(client.id, encodeURIComponent(JSON.stringify(value)), updateIfExists) + client.getAPI()
       type: 'GET'
       async: true
       cache: false
@@ -235,7 +245,7 @@ try
         callback JSON.parse(xhr.responseText)
     }
 
-  addEdge = (json, callback) ->
+  linkWithEdge = (json, callback) ->
     value = {}
     value.edge = {}
     
@@ -245,6 +255,8 @@ try
         when 1
           value.edge.subjectType = key if key isnt model.mark and model.edge.prototype.indexOf(key) is -1 
           value.edge.subjectId = json[key] if json[key] isnt model.mark
+          if value.edge.subjectType isnt undefined and value.edge.subjectType.indexOf(model.subjectMark) is 0
+            value.edge.subjectType = value.edge.subjectType.substring(1, value.edge.subjectType.length)
         when 2
           if model.verbs.indexOf(key) is -1
             console.log "#{prefix.log} Verb isn\'t match with do/does/did/verb. - mintpresso.set"
@@ -253,13 +265,15 @@ try
         when 3
           value.edge.objectType = key if key isnt model.mark and model.edge.prototype.indexOf(key) is -1 
           value.edge.objectId = json[key] if json[key] isnt model.mark
+          if value.edge.objectType isnt undefined and value.edge.objectType.indexOf(model.objectMark) is 0
+            value.edge.objectType = value.edge.objectType.substring(1, value.edge.objectType.length)
         else
           console.log "#{prefix.log} Too many arguments are given to be a form of subject/verb/object query - mintpresso.set"
           return false
       i++
 
     jQuery.ajax {
-      url: server.get() + prefix.version + server.urls.linkWithEdge.format(client.id, encodeURIComponent JSON.stringify(value)) + client.getAPI()
+      url: server.get() + prefix.version + server.urls.linkWithEdge.format(client.id, encodeURIComponent(JSON.stringify(value))) + client.getAPI()
       type: 'GET'
       async: true
       cache: false
@@ -294,9 +308,7 @@ try
         #   else if arguments[2] typeof 'object' and `'getInnerModels' in arguments[2]`
         #     getInnerModels = Boolean(arguments[2] === true)
         if arguments[2] isnt undefined and typeof 'boolean'
-          getInnerModels = true
-        else
-          getInnerModels = false
+          getInnerModels = Boolean(arguments[2] is true)
 
         if arguments[1] isnt undefined and typeof arguments[1] is 'function'
           callback = arguments[1]
@@ -346,10 +358,12 @@ try
             if typeof arguments[1] is 'function'
               callback = arguments[1]
               if arguments[2] isnt undefined and typeof arguments is 'boolean'
-                updateIfExists = true
+                updateIfExists = Boolean(arguments[2] is true)
+            else if typeof arguments[1] is 'boolean'
+                updateIfExists = Boolean(arguments[1] is true)
 
           if isEdgeOperation is true
-            addEdge arguments[0], callback
+            linkWithEdge arguments[0], callback
           else
             if arguments[1] is undefined or arguments[1] is false
               addPoint arguments[0], callback, updateIfExists
